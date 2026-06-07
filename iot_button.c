@@ -310,8 +310,24 @@ static void button_handler(button_dev_t *btn)
     }
 }
 
+
+// 添加预轮询钩子
+typedef void (*button_pre_poll_cb_t)(void);
+static button_pre_poll_cb_t g_pre_poll_cb = NULL;
+
+esp_err_t iot_button_register_pre_poll_cb(button_pre_poll_cb_t cb)
+{
+    g_pre_poll_cb = cb;
+    return ESP_OK;
+}
+
 static void button_cb(void *args)
 {
+    // ← 在轮询前立即更新缓存
+    if (g_pre_poll_cb) {
+        g_pre_poll_cb();  // mcp_cache_update()
+    }
+
     button_dev_t *target;
     /*!< When all buttons enter the BUTTON_NONE_PRESS state, the system enters low-power mode */
     bool enter_power_save_flag = true;
@@ -632,7 +648,7 @@ esp_err_t iot_button_register_power_save_cb(const button_power_save_config_t *co
 esp_err_t iot_button_create(const button_config_t *config, const button_driver_t *driver, button_handle_t *ret_button)
 {
     if (!g_head_handle) {
-        ESP_LOGI(TAG, "IoT Button Version: %d.%d.%d", BUTTON_VER_MAJOR, BUTTON_VER_MINOR, BUTTON_VER_PATCH);
+        ESP_LOGI(TAG, "IoT Button Version: %d.%d.%d", MY_BUTTON_VER_MAJOR, MY_BUTTON_VER_MINOR, MY_BUTTON_VER_PATCH);
     }
     ESP_RETURN_ON_FALSE(driver && config && ret_button, ESP_ERR_INVALID_ARG, TAG, "Invalid argument");
     button_dev_t *btn = (button_dev_t *) calloc(1, sizeof(button_dev_t));
